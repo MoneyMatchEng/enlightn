@@ -32,18 +32,32 @@ class JsonReportBuilder implements ReportBuilder
     public function metadata()
     {
         return [
-            'app_name' => config('app.name'),
-            'app_env' => config('app.env'),
-            'app_url' => config('app.url'),
+            'app_name' => $this->getAppName(),
+            'app_env' => $this->getAppEnv(),
+            'app_url' => $this->getAppUrl(),
             'project_name' => $this->getProjectName(),
-            'github_repo' => config('enlightn.github_repo'),
-            'commit_id' => CommitHash::get(),
-            'trigger' => 'command',
+            'github_repo' => $this->getGithubRepo(),
+            'commit_id' => $this->getCommitId(),
+            'trigger' => $this->getTrigger(),
         ];
     }
 
+    public function getAppName(){
+        return config('app.name');
+    }
+
+    public function getAppEnv(){
+        return config('app.env');
+    }
+
+    public function getAppUrl(){
+        return config('app.url');
+    }
+
     /**
+     *
      * @return string|null
+     *
      */
     protected function getProjectName()
     {
@@ -58,4 +72,17 @@ class JsonReportBuilder implements ReportBuilder
 
         return $json['name'] ?? null;
     }
+
+    public function getGithubRepo(){
+        return config('enlightn.github_repo');
+    }
+
+    public function getCommitId(){
+        return CommitHash::get();
+    }
+
+    public function getTrigger(){
+        return 'command';
+    }
+
 }

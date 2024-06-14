@@ -183,4 +183,47 @@ return [
         '--no-progress' => true,
         '--memory-limit' => ini_get('memory_limit'),
     ],
+
+    /*
+     * You can get notified when specific events occur. Out of the box you can use 'mail' and 'slack'.
+     * For Slack you need to install laravel/slack-notification-channel.
+     *
+     * You can also use your own notification classes, just make sure the class is named after one of
+     * the `Enlightn\Enlightn\Notifications\Notifications` classes.
+     */
+    'notifications' => [
+        'notifications' => [
+            Enlightn\Enlightn\Notifications\Notifications\EnlightnHasFailedNotification::class => ['mail'],
+            Enlightn\Enlightn\Notifications\Notifications\EnlightnWasSuccessfulNotification::class => ['mail'],
+        ],
+
+        /*
+         * Here you can specify the notifiable to which the notifications should be sent. The default
+         * notifiable will use the variables specified in this config file.
+         */
+        'notifiable' => Enlightn\Enlightn\Notifications\Notifiable::class,
+
+        'mail' => [
+            'to' => 'your@example.com',
+
+            'from' => [
+                'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+                'name' => env('MAIL_FROM_NAME', 'Example'),
+            ],
+        ],
+
+        'slack' => [
+            'webhook_url' => '',
+
+            /*
+             * If this is set to null the default channel of the webhook will be used.
+             */
+            'channel' => null,
+
+            'username' => null,
+
+            'icon' => null,
+        ],
+    ],
+
 ];

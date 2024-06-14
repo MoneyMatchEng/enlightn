@@ -3,6 +3,7 @@
 namespace Enlightn\Enlightn;
 
 use Enlightn\Enlightn\Inspection\Inspector;
+use Enlightn\Enlightn\Notifications\EventHandler;
 use Enlightn\Enlightn\Reporting\API;
 use Enlightn\Enlightn\Reporting\Client;
 use Illuminate\Support\ServiceProvider;
@@ -17,6 +18,8 @@ class EnlightnServiceProvider extends ServiceProvider
     public function boot()
     {
         if ($this->app->runningInConsole()) {
+            $this->app['events']->subscribe(EventHandler::class);
+
             $this->publishes([
                 __DIR__.'/../config/enlightn.php' => config_path('enlightn.php'),
             ], 'enlightn');

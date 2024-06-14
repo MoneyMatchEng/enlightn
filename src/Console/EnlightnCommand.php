@@ -4,9 +4,12 @@ namespace Enlightn\Enlightn\Console;
 
 use Enlightn\Enlightn\Console\Formatters\AnsiFormatter;
 use Enlightn\Enlightn\Enlightn;
+use Enlightn\Enlightn\Events\EnlightnHasFailed;
+use Enlightn\Enlightn\Events\EnlightnWasSuccessful;
 use Enlightn\Enlightn\Reporting\API;
 use Enlightn\Enlightn\Reporting\JsonReportBuilder;
 use Illuminate\Console\Command;
+use Enlightn\Enlightn\Exceptions\ScanFailed;
 
 class EnlightnCommand extends Command
 {
@@ -23,7 +26,8 @@ class EnlightnCommand extends Command
                             {--review : Enable this for a review of the diff by the Enlightn Github Bot}
                             {--show-exceptions : Display the stack trace of exceptions if any}
                             {--issue= : The issue number of the pull request for the Enlightn Github Bot}
-                            {--hash= : An optional alternative commit hash to report to the Web UI}';
+                            {--hash= : An optional alternative commit hash to report to the Web UI}
+                            {--disable-notifications : Disable notifications}';
 
     /**
      * The console command description.
@@ -81,60 +85,101 @@ class EnlightnCommand extends Command
      */
     public function handle(API $api)
     {
-        $this->analyzerClasses = $this->argument('analyzer');
+        $disableNotifications = $this->option('disable-notifications');
 
-        $this->formatter = new AnsiFormatter;
+        try{
+            $this->analyzerClasses = $this->argument('analyzer');
 
-        $this->formatter->beforeAnalysis($this);
+            $this->formatter = new AnsiFormatter;
 
-        if ($this->option('ci')) {
-            Enlightn::filterAnalyzersForCI();
-        }
-
-        Enlightn::register($this->analyzerClasses);
-
-        $this->totalAnalyzers = Enlightn::totalAnalyzers();
-        $this->countAnalyzers = 1;
-        $this->initializeResult();
-
-        Enlightn::using([$this, 'printAnalyzerOutput']);
-        Enlightn::run($this->laravel);
-
-        $this->formatter->afterAnalysis($this, empty($this->analyzerClasses));
-
-        if ($this->option('report')) {
-            $reportBuilder = new JsonReportBuilder();
-
-            $metadata = [];
-
-            if ($github_issue = $this->option('issue')) {
-                $metadata = compact('github_issue');
-            }
-
-            if ($this->option('review')) {
-                $metadata['needs_review'] = true;
-            }
+            $this->formatter->beforeAnalysis($this);
 
             if ($this->option('ci')) {
-                $metadata['trigger'] = 'ci';
+                Enlightn::filterAnalyzersForCI();
             }
 
-            if ($hash = $this->option('hash')) {
-                $metadata['commit_id'] = $hash;
+            Enlightn::register($this->analyzerClasses);
+
+            $this->totalAnalyzers = Enlightn::totalAnalyzers();
+            $this->countAnalyzers = 1;
+            $this->initializeResult();
+
+            Enlightn::using([$this, 'printAnalyzerOutput']);
+            Enlightn::run($this->laravel);
+
+            $this->formatter->afterAnalysis($this, empty($this->analyzerClasses));
+
+            if ($this->option('report')) {
+                $reportBuilder = new JsonReportBuilder();
+
+                $metadata = [];
+
+                if ($github_issue = $this->option('issue')) {
+                    $metadata = compact('github_issue');
+                }
+
+                if ($this->option('review')) {
+                    $metadata['needs_review'] = true;
+                }
+
+                if ($this->option('ci')) {
+                    $metadata['trigger'] = 'ci';
+                }
+
+                if ($hash = $this->option('hash')) {
+                    $metadata['commit_id'] = $hash;
+                }
+
+                $url = $api->sendReport($reportBuilder->buildReport($this->analyzerInfos, $this->result, $metadata));
+
+                if (! is_null($url)) {
+                    $this->getOutput()->newLine();
+                    $this->comment("Your report can be viewed at <href={$url}>{$url}</>");
+                }
             }
 
-            $url = $api->sendReport($reportBuilder->buildReport($this->analyzerInfos, $this->result, $metadata));
+            if (! $disableNotifications) {
+                $reportBuilder = new JsonReportBuilder();
 
-            if (! is_null($url)) {
-                $this->getOutput()->newLine();
-                $this->comment("Your report can be viewed at <href={$url}>{$url}</>");
+                $metadata = [];
+
+                if ($this->option('ci')) {
+                    $metadata['trigger'] = 'ci';
+                }
+
+                if ($hash = $this->option('hash')) {
+                    $metadata['commit_id'] = $hash;
+                }
+
+                $report = $reportBuilder->buildReport($this->analyzerInfos, $this->result, $metadata);
+
+                event(new EnlightnWasSuccessful($report));
+
+
+                if (! is_null($url)) {
+                    $this->getOutput()->newLine();
+                    $this->comment("Your report can be viewed at <href={$url}>{$url}</>");
+                }
             }
+
+            // Exit with a non-zero exit code if there were failed checks to throw an error on CI environments
+            return collect($this->result)->sum(function ($category) {
+                return $category['reported'];
+            }) == 0 ? 0 : 1;
+        }catch(\Exception $exception){
+            $this->comment("Englightn scan failed because: {$exception->getMessage()}.");
+
+            report($exception);
+
+            if (! $disableNotifications) {
+                event(
+                    $exception instanceof ScanFailed
+                    ? new EnlightnHasFailed($exception->getPrevious(), $exception->report)
+                    : new EnlightnHasFailed($exception)
+                );
+            }
+            return 1;
         }
-
-        // Exit with a non-zero exit code if there were failed checks to throw an error on CI environments
-        return collect($this->result)->sum(function ($category) {
-            return $category['reported'];
-        }) == 0 ? 0 : 1;
     }
 
     /**
