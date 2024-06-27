@@ -154,12 +154,6 @@ class EnlightnCommand extends Command
                 $report = $reportBuilder->buildReport($this->analyzerInfos, $this->result, $metadata);
 
                 event(new EnlightnWasSuccessful($report));
-
-
-                if (! is_null($url)) {
-                    $this->getOutput()->newLine();
-                    $this->comment("Your report can be viewed at <href={$url}>{$url}</>");
-                }
             }
 
             // Exit with a non-zero exit code if there were failed checks to throw an error on CI environments

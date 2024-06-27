@@ -9,12 +9,6 @@ use Enlightn\Enlightn\Reporting\ReportBuilder;
 
 abstract class BaseNotification extends Notification
 {
-
-    public function __construct(
-        public $event,
-    ) {
-    }
-
     public function via(): array
     {
         $notificationChannels = config('enlightn.notifications.notifications.'.static::class);
@@ -34,28 +28,24 @@ abstract class BaseNotification extends Notification
     {
         $reportBuilder = $this->reportBuilder();
 
-        $appName = $reportBuilder->getAppName();
-        $appEnv = $reportBuilder->getAppEnv();
-        $appUrl = $reportBuilder->getAppUrl();
-        $githubRepo = $reportBuilder->getGithubRepo();
-        $commitId = $reportBuilder->getCommitId();
-        $trigger = $reportBuilder->getTrigger();
+        $applicationName = $this->applicationName();
+        $meta = array_get($reportBuilder, 'metadata');
+        $analyzerResults = array_get($reportBuilder, 'analyzer_results');
+        $analyzerStats = array_get($reportBuilder, 'analyzer_stats');
 
         return collect([
-            'application name' => $appName,
-            'application environment' => $appEnv,
-            'application url' => $appUrl,
-            'github repository' => $githubRepo,
-            'commit id' => $commitId,
-            'trigger' => $trigger,
+            'Application' => $applicationName,
+            'meta' => $meta,
+            'analyzer_results' => $analyzerResults,
+            'analyzer_stats' => $analyzerStats,
         ])->filter();
 
     }
 
-    public function reportBuilder(): ?ReportBuilder
+    public function reportBuilder(): ?array
     {
-        if (isset($this->event->reportBuilder)) {
-            $reportBuilder = $this->event->reportBuilder;
+        if (isset($this->event->report)) {
+            $reportBuilder = $this->event->report;
             return $reportBuilder;
         }
         return null;

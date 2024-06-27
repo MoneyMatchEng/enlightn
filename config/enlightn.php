@@ -193,8 +193,8 @@ return [
      */
     'notifications' => [
         'notifications' => [
-            Enlightn\Enlightn\Notifications\Notifications\EnlightnHasFailedNotification::class => ['mail'],
-            Enlightn\Enlightn\Notifications\Notifications\EnlightnWasSuccessfulNotification::class => ['mail'],
+            Enlightn\Enlightn\Notifications\Notifications\EnlightnHasFailedNotification::class => ['mail', 'slack'],
+            Enlightn\Enlightn\Notifications\Notifications\EnlightnWasSuccessfulNotification::class => ['mail','slack'],
         ],
 
         /*
@@ -213,7 +213,7 @@ return [
         ],
 
         'slack' => [
-            'webhook_url' => '',
+            'webhook_url' => env('LOG_SLACK_WEBHOOK_URL'),
 
             /*
              * If this is set to null the default channel of the webhook will be used.

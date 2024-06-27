@@ -10,23 +10,25 @@ use Enlightn\Enlightn\Notifications\BaseNotification;
 
 class EnlightnHasFailedNotification extends BaseNotification
 {
+    private array $scanProperties;
+
     public function __construct(
         public EnlightnHasFailed $event,
     ) {
+        $this->scanProperties = $this->enlightnScanProperties()->toArray();
     }
 
     public function toMail(): MailMessage
     {
         $mailMessage = (new MailMessage())
+            ->subject('Application Analysis Report of '.$this->applicationName().' Failed')
+            ->line('**Application:** ' .$this->scanProperties['Application'])
             ->error()
-            ->from(config('enlightn.notifications.mail.from.address', config('mail.from.address')), config('enlightn.notifications.mail.from.name', config('mail.from.name')))
-            ->subject("Failed scan of". $this->applicationName())
-            ->line('Important: An error occurred while scanning up ' . $this->applicationName())
-            ->line('Exception message: ' . $this->event->exception->getMessage())
-            ->line('Exception trace: :trace ' . $this->event->exception->getTraceAsString());
+            ->from(config('enlightn.notifications.mail.from.address', config('mail.from.address')), config('enlightn.notifications.mail.from.name', config('mail.from.name')));
 
-        $this->enlightnScanProperties()->each(fn ($value, $name) => $mailMessage->line("{$name}: $value"));
-
+            $mailMessage
+                ->line('Exception message: ' . $this->event->exception->getMessage())
+                ->line('Exception trace: :trace ' . $this->event->exception->getTraceAsString());
         return $mailMessage;
     }
 
